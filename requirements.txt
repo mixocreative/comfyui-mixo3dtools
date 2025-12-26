@@ -1,0 +1,8 @@
+numpy
+trimesh
+pillow
+torch
+pygfx
+wgpu
+pygltflib
+scipy
