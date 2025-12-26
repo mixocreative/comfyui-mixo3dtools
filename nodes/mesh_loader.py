@@ -26,44 +26,86 @@ class MeshFromPath:
             import trimesh
             final_path = mesh_path
             if not os.path.exists(final_path):
-                 # Check Input Dir fallback
                 inp_path = os.path.join(folder_paths.get_input_directory(), mesh_path)
-                if os.path.exists(inp_path):
-                    final_path = inp_path
-                else:
-                    raise FileNotFoundError(f"Path not found: {mesh_path}")
+                if os.path.exists(inp_path): final_path = inp_path
+                else: raise FileNotFoundError(f"Path not found: {mesh_path}")
 
             scene_or_mesh = trimesh.load(final_path)
             
-            def process_tm(tm_mesh):
-                m_data = SceneMeshData(
-                    vertices=np.array(tm_mesh.vertices, dtype=np.float32),
-                    indices=np.array(tm_mesh.faces, dtype=np.int32),
-                    normals=np.array(tm_mesh.vertex_normals, dtype=np.float32) if hasattr(tm_mesh, 'vertex_normals') else None,
-                    uvs=np.array(tm_mesh.visual.uv, dtype=np.float32) if hasattr(tm_mesh.visual, 'uv') else None
-                )
-                try:
-                    if hasattr(tm_mesh.visual, 'material'):
-                        mat = tm_mesh.visual.material
-                        m_data.materials = [{
-                            "base_color": list(mat.baseColorFactor) if hasattr(mat, 'baseColorFactor') else [0.8, 0.8, 0.8, 1.0],
-                            "metallic": float(getattr(mat, 'metallicFactor', 0.0)),
-                            "roughness": float(getattr(mat, 'roughnessFactor', 0.5)),
-                        }]
-                        if hasattr(mat, 'baseColorTexture') and mat.baseColorTexture is not None:
-                            m_data.textures['base_color_texture'] = mat.baseColorTexture
-                        elif hasattr(mat, 'image') and mat.image is not None:
-                            m_data.textures['base_color_texture'] = mat.image
-                except:
-                    m_data.materials = [{"base_color": [0.8, 0.8, 0.8, 1.0], "roughness": 0.5, "metallic": 0.0}]
-                return m_data
-
             if isinstance(scene_or_mesh, trimesh.Scene):
-                mesh_data = process_tm(scene_or_mesh.dump(concatenate=True))
-            else:
-                mesh_data = process_tm(scene_or_mesh)
+                all_verts = []
+                all_faces = []
+                all_normals = []
+                all_uvs = []
+                all_mats = []
+                all_face_mat_indices = []
+                
+                v_offset = 0
+                mat_cache = {} 
 
-            mesh_id = registry.register_mesh(mesh_data, requested_id=mesh_id)
+                for name, mesh in scene_or_mesh.geometry.items():
+                    mat_obj = getattr(mesh.visual, 'material', None)
+                    mat_key = str(id(mat_obj)) if mat_obj else "default"
+                    
+                    if mat_key not in mat_cache:
+                        mat_idx = len(all_mats)
+                        mat_cache[mat_key] = mat_idx
+                        # Extract material data with NAME
+                        m_name = getattr(mat_obj, 'name', f"Material_{mat_idx}")
+                        if not m_name: m_name = f"Material_{mat_idx}"
+                        
+                        m_info = {
+                            "name": m_name,
+                            "base_color": [0.8, 0.8, 0.8, 1.0], 
+                            "metallic": 0.0, 
+                            "roughness": 0.5
+                        }
+                        if mat_obj and hasattr(mat_obj, 'baseColorFactor'):
+                            m_info["base_color"] = list(mat_obj.baseColorFactor)
+                            m_info["metallic"] = float(getattr(mat_obj, 'metallicFactor', 0.0))
+                            m_info["roughness"] = float(getattr(mat_obj, 'roughnessFactor', 0.5))
+                        all_mats.append(m_info)
+                    
+                    m_idx = mat_cache[mat_key]
+                    all_verts.append(mesh.vertices)
+                    all_faces.append(mesh.faces + v_offset)
+                    if hasattr(mesh, 'vertex_normals'): all_normals.append(mesh.vertex_normals)
+                    if hasattr(mesh.visual, 'uv'): all_uvs.append(mesh.visual.uv)
+                    else: all_uvs.append(np.zeros((len(mesh.vertices), 2)))
+                    
+                    all_face_mat_indices.append(np.full(len(mesh.faces), m_idx, dtype=np.int32))
+                    v_offset += len(mesh.vertices)
+
+                mesh_data = SceneMeshData(
+                    vertices=np.vstack(all_verts) if all_verts else np.zeros((0,3)),
+                    indices=np.vstack(all_faces) if all_faces else np.zeros((0,3), dtype=np.int32),
+                    normals=np.vstack(all_normals) if all_normals else None,
+                    uvs=np.vstack(all_uvs) if all_uvs else None,
+                    materials=all_mats,
+                    face_material_indices=np.concatenate(all_face_mat_indices) if all_face_mat_indices else None
+                )
+            else:
+                mesh = scene_or_mesh
+                m_obj = getattr(mesh.visual, 'material', None)
+                m_name = getattr(m_obj, 'name', "DefaultMaterial")
+                if not m_name: m_name = "DefaultMaterial"
+                
+                m_info = {"name": m_name, "base_color": [0.8, 0.8, 0.8, 1.0], "metallic": 0.0, "roughness": 0.5}
+                if m_obj and hasattr(m_obj, 'baseColorFactor'):
+                    m_info["base_color"] = list(m_obj.baseColorFactor)
+                    m_info["metallic"] = float(getattr(m_obj, 'metallicFactor', 0.0))
+                    m_info["roughness"] = float(getattr(m_obj, 'roughnessFactor', 0.5))
+
+                mesh_data = SceneMeshData(
+                    vertices=np.array(mesh.vertices, dtype=np.float32),
+                    indices=np.array(mesh.faces, dtype=np.int32),
+                    normals=np.array(mesh.vertex_normals, dtype=np.float32) if hasattr(mesh, 'vertex_normals') else None,
+                    uvs=np.array(mesh.visual.uv, dtype=np.float32) if hasattr(mesh.visual, 'uv') else None,
+                    materials=[m_info],
+                    face_material_indices=np.zeros(len(mesh.faces), dtype=np.int32)
+                )
+
+            registry.register_mesh(mesh_data, requested_id=mesh_id)
             return (mesh_id,)
 
         except Exception as e:
@@ -75,5 +117,5 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "MeshFromPath": "Mesh From Path (Mixo3D)"
+    "MeshFromPath": "Mesh From Path"
 }
