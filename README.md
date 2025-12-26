@@ -17,9 +17,9 @@ A modular, high-performance 3D scene assembly and material editing suite for Com
 ## 🛠️ Nodes
 
 ### 1. Mesh From Path (Mixo3D)
-The bridge between your local filesystem and the Mixo3D ecosystem.
--   **Path**: Direct path to your `.glb`, `.obj`, or `.stl` file.
--   **Mesh ID**: Assign a unique name to reference this object in downstream nodes.
+The bridge between ComfyUI's official 3D nodes and the Mixo3D ecosystem.
+-   **Path**: Direct path to your 3D file. **Note**: This node is best used in conjunction with the official ComfyUI (Beta) "Load 3D" nodes. Simply plug the path output from the official node into this input to register it into the Mixo3D registry.
+-   **Mesh ID**: Assign a unique name to reference this object in downstream Mixo3D nodes.
 
 ### 2. Mesh Transform
 Apply spatial adjustments to your 3D assets.
