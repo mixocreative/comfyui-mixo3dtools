@@ -92,19 +92,32 @@ The final aggregator for complex 3D scenes with industrial-grade visualization.
 
 ## 🚀 Installation
 
-1.  Navigate to your ComfyUI `custom_nodes` directory:
+### Option 1: Manual Installation (Recommended)
+
+1.  **Open a Terminal/Command Prompt** and navigate to your ComfyUI `custom_nodes` folder:
     ```bash
     cd ComfyUI/custom_nodes
     ```
-2.  Clone this repository:
+
+2.  **Clone this repository**:
     ```bash
     git clone https://github.com/mixocreative/comfyui-mixo3dtools.git
     ```
-3.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-4.  Restart ComfyUI.
+
+3.  **Install Dependencies**:
+    *   **If you are using the ComfyUI Portable/Standalone version (Windows)**, go to the `ComfyUI_windows_portable` folder and run:
+        ```bash
+        python_embeded\python.exe -m pip install -r custom_nodes\mixo3dtools\requirements.txt
+        ```
+    *   **If you are using a standard Python/Conda environment**:
+        ```bash
+        pip install -r mixo3dtools/requirements.txt
+        ```
+
+4.  **Restart ComfyUI**.
+
+### Option 2: ComfyUI-Manager (Coming Soon)
+Search for `mixo3dtools` in the ComfyUI-Manager and click "Install". (If it's not there yet, use Option 1).
 
 ## 📦 Dependencies
 
