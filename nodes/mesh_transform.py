@@ -54,33 +54,29 @@ class MeshTransform:
         # Create node data
         node_data = SceneNodeData(
             mesh_id=mesh_id,
-            transform=matrix
+            transform=matrix,
+            # Pass raw values for frontend syncing/export if needed later
+            metadata={
+                "pos": (pos_x, pos_y, pos_z),
+                "rot": (rot_x, rot_y, rot_z),
+                "scale": uniform_scale
+            }
         )
         
         # Register node
         node_id = registry.register_node(node_data)
         
-        # Generate preview
-        out_dir = folder_paths.get_output_directory()
-        subfolder = "mixo3d_cache"
-        full_out_dir = os.path.join(out_dir, subfolder)
-        os.makedirs(full_out_dir, exist_ok=True)
-        
-        preview_filename = f"preview_xform_{uuid.uuid4()}.glb"
-        preview_path = os.path.join(full_out_dir, preview_filename)
-        relative_out_path = os.path.join(subfolder, preview_filename)
-        
-        GLBExporter.export([node_id], preview_path, add_preview_helpers=False)
-        
+        # Pass data to UI, but DO NOT bake a GLB here.
+        # The frontend will visualize the transformation live.
         ui_data = {
-            "glb_url": [relative_out_path],
+            "glb_url": [], # No baked URL for this step
             "settings": {
                 "fov": fov, "exposure": exposure, "bg_color": bg_color,
                 "material_mode": "original", "up_direction": "Y",
                 "show_preview": show_preview
             }
         }
-        return {"ui": ui_data, "result": (node_id, relative_out_path)}
+        return {"ui": ui_data, "result": (node_id, "")}
 
 NODE_CLASS_MAPPINGS = {
     "MeshTransform": MeshTransform
