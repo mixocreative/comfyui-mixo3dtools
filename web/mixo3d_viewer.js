@@ -332,14 +332,40 @@ app.registerExtension({
 
             this.fitCamera = (force = false) => {
                 if (!this.threeScene || (this.__cameraMoved && !force)) return;
-                const box = new THREE.Box3(); let any = false;
-                this.threeScene.traverse(m => { if (m.isMesh && m.type !== "GridHelper") { box.expandByObject(m); any = true; } });
-                if (!any) return;
-                const c = box.getCenter(new THREE.Vector3()); const s = box.getSize(new THREE.Vector3());
+
+                const box = new THREE.Box3();
+                let any = false;
+
+                this.threeScene.traverse(m => {
+                    // Ignore Grid, DebugCube, and Helpers
+                    if (m.isMesh && m.type !== "GridHelper" && m !== this.debugCube && !m.isHelper) {
+                        box.expandByObject(m);
+                        any = true;
+                    }
+                });
+
+                if (!any) {
+                    // Reset to default if empty
+                    if (force) {
+                        this.threeControls.target.set(0, 0, 0);
+                        this.threeCamera.position.set(150, 150, 150);
+                        this.threeControls.update();
+                    }
+                    return;
+                }
+
+                const c = box.getCenter(new THREE.Vector3());
+                const s = box.getSize(new THREE.Vector3());
                 const d = Math.max(s.x, s.y, s.z) * 2.2;
-                if (d < 0.1) return;
+
+                // Safety check for NaN or Infinity
+                if (!isFinite(d) || !isFinite(c.x) || !isFinite(c.y) || !isFinite(c.z)) return;
+
+                if (d < 0.1) return; // Too small
+
                 this.threeControls.target.copy(c);
                 this.threeCamera.position.set(c.x + d, c.y + d, c.z + d);
+                this.threeControls.update();
             };
 
             container.addEventListener("mouseenter", () => { this.__mouseIn = true; });
