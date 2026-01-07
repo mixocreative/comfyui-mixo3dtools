@@ -483,6 +483,28 @@ app.registerExtension({
 
             }, 50);
 
+            // Restore SceneAssembler dynamic inputs
+            if (nodeData.name === "SceneAssembler") {
+                const orig = this.onConnectionsChange;
+                this.onConnectionsChange = function (type, index, connected, link_info, slot_info) {
+                    if (orig) orig.apply(this, arguments);
+                    if (!connected) return; // Optimization
+                    setTimeout(() => {
+                        let last = 1;
+                        (this.inputs || []).forEach(i => {
+                            if (i.link !== null && i.name.startsWith("mesh_id_")) {
+                                let n = parseInt(i.name.replace("mesh_id_", ""));
+                                if (n > last) last = n;
+                            }
+                        });
+                        const target = Math.min(last + 1, 50);
+                        if (!this.inputs.some(i => i.name === `mesh_id_${target}`)) {
+                            this.addInput(`mesh_id_${target}`, "STRING");
+                        }
+                    }, 50);
+                };
+            }
+
             return r;
         };
 
