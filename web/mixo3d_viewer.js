@@ -449,7 +449,15 @@ app.registerExtension({
                             if (obj.sourceNodeId) w.userData.sourceNodeId = obj.sourceNodeId;
                             self.compositionModels[obj.id] = w;
                             self.threeScene.add(w);
-                            if (!self.__initCam) { self.fitCamera(true); self.__initCam = true; }
+                            // Always fit camera on first load or if it's a baked result update
+                            // This ensures the user sees the output of 'Run'
+                            if (!self.__hasFramedOnce || obj.id === "baked") {
+                                self.fitCamera(true);
+                                self.__hasFramedOnce = true;
+                            }
+                        }, undefined, (e) => {
+                            console.error("[Mixo3D] Load Error:", e);
+                            self.compositionModels[obj.id] = null;
                         });
                     }
                     if (m && m.isObject3D) {
