@@ -9,10 +9,10 @@ const loadLib = (url) => new Promise(resolve => {
 
 (async () => {
     if (window.mixo3d_libs_loaded) return;
-    await loadLib("https://unpkg.com/three@0.128.0/build/three.min.js");
-    await loadLib("https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js");
-    await loadLib("https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js");
-    await loadLib("https://unpkg.com/three@0.128.0/examples/js/controls/TransformControls.js");
+    await loadLib("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js");
+    await loadLib("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/GLTFLoader.js");
+    await loadLib("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/OrbitControls.js");
+    await loadLib("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/TransformControls.js");
 
     // Safety timeout to ensure scripts are actually parsed and ready
     setTimeout(() => {
