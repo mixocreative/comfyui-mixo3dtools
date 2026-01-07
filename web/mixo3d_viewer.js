@@ -3,16 +3,19 @@ import { api } from "../../scripts/api.js";
 
 const loadLib = (url) => new Promise(resolve => {
     const s = document.createElement("script");
-    s.src = url; s.onload = () => resolve(true); s.onerror = () => resolve(false);
+    s.src = url;
+    s.onload = () => { console.log("[Mixo3D] Loaded:", url); resolve(true); };
+    s.onerror = () => { console.error("[Mixo3D] Failed to load:", url); resolve(false); };
     document.head.appendChild(s);
 });
 
 (async () => {
     if (window.mixo3d_libs_loaded) return;
-    await loadLib("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js");
-    await loadLib("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/GLTFLoader.js");
-    await loadLib("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/OrbitControls.js");
-    await loadLib("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/TransformControls.js");
+    // JSDelivr is a robust CDN that mirrors npm correctly
+    await loadLib("https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js");
+    await loadLib("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js");
+    await loadLib("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js");
+    await loadLib("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js");
 
     // Safety timeout to ensure scripts are actually parsed and ready
     setTimeout(() => {
@@ -50,8 +53,24 @@ app.registerExtension({
                 position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                 zIndex: 100, padding: '10px 20px', background: '#333', color: '#fff', border: '1px solid #555', cursor: 'pointer'
             });
-            refreshBtn.onclick = () => {
+            refreshBtn.onclick = async () => {
+                if (typeof THREE === "undefined") {
+                    // Retry loading if missing
+                    refreshBtn.textContent = "⏳ DOWNLOADING LIBS...";
+                    await loadLib("https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js");
+                    await loadLib("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js");
+                    await loadLib("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js");
+                    await loadLib("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js");
+                }
+
                 window.mixo3d_libs_loaded = (typeof THREE !== "undefined" && THREE.GLTFLoader);
+
+                if (!window.mixo3d_libs_loaded) {
+                    alert("Failed to load Three.js libraries. Please check your internet connection or VPN.");
+                    refreshBtn.textContent = "❌ LOAD FAILED (Retry)";
+                    return;
+                }
+
                 if (self.initEngine) self.initEngine();
             };
             container.appendChild(refreshBtn);
