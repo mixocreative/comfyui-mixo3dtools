@@ -407,10 +407,20 @@ app.registerExtension({
 
                         self.compositionModels[obj.id] = "LOADING";
                         self.gltfLoader.load(obj.url, (gltf) => {
-                            const m = gltf.scene;
-                            m.__lastUrl = obj.url;
-                            self.compositionModels[obj.id] = m;
-                            self.threeScene.add(m);
+                            const rawModel = gltf.scene;
+
+                            // 🛡️ WRAPPER PATTERN
+                            // We wrap the raw model in a group so we don't overwrite the 
+                            // file's inherent root transforms (if any) with our slider matrix.
+                            // This ensures Preview matches Python's baked logic.
+                            const wrapper = new THREE.Group();
+                            wrapper.add(rawModel);
+
+                            wrapper.__lastUrl = obj.url;
+                            wrapper.isWrapper = true; // Flag for debugging
+
+                            self.compositionModels[obj.id] = wrapper;
+                            self.threeScene.add(wrapper);
 
                             // Only force camera fit if it's the very first load of the session
                             if (!self.__hasFramedOnce) {
@@ -433,6 +443,12 @@ app.registerExtension({
                         if (obj.materialState) {
                             model.traverse(c => {
                                 if (c.isMesh && c.material) {
+                                    const oldMat = c.material; // Preserve original maps if possible
+
+                                    // Clone to avoid sharing issues
+                                    // But we want to reuse if just updating color
+                                    // For simplicity and robustness in this fix, we update properties
+
                                     c.material.color.setRGB(obj.materialState.r, obj.materialState.g, obj.materialState.b);
                                     c.material.metalness = obj.materialState.metallic;
                                     c.material.roughness = obj.materialState.roughness;
