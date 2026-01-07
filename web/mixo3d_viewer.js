@@ -13,7 +13,12 @@ const loadLib = (url) => new Promise(resolve => {
     await loadLib("https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js");
     await loadLib("https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js");
     await loadLib("https://unpkg.com/three@0.128.0/examples/js/controls/TransformControls.js");
-    window.mixo3d_libs_loaded = (typeof THREE !== "undefined" && THREE.GLTFLoader && THREE.TransformControls);
+    await loadLib("https://unpkg.com/three@0.128.0/examples/js/controls/TransformControls.js");
+    // Wait a tiny bit for scripts to parse
+    setTimeout(() => {
+        window.mixo3d_libs_loaded = (typeof THREE !== "undefined" && THREE.GLTFLoader);
+        console.log("[Mixo3D] Libs loaded check:", window.mixo3d_libs_loaded);
+    }, 100);
 })();
 
 app.registerExtension({
