@@ -12,7 +12,8 @@ const loadLib = (url) => new Promise(resolve => {
     await loadLib("https://unpkg.com/three@0.128.0/build/three.min.js");
     await loadLib("https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js");
     await loadLib("https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js");
-    window.mixo3d_libs_loaded = (typeof THREE !== "undefined" && THREE.GLTFLoader);
+    await loadLib("https://unpkg.com/three@0.128.0/examples/js/controls/TransformControls.js");
+    window.mixo3d_libs_loaded = (typeof THREE !== "undefined" && THREE.GLTFLoader && THREE.TransformControls);
 })();
 
 app.registerExtension({
@@ -132,6 +133,125 @@ app.registerExtension({
                     if (this.__mouseIn) this.__cameraMoved = true;
                     this.setDirtyCanvas(true);
                 });
+
+                // 🛠️ TRANSFORM GIZMO
+                this.transformControl = new THREE.TransformControls(this.threeCamera, this.viewer_element);
+                this.transformControl.setSpace('local');
+                this.transformControl.addEventListener('change', () => this.setDirtyCanvas(true));
+
+                // Disable Orbit controls while dragging gizmo
+                this.transformControl.addEventListener('dragging-changed', (event) => {
+                    this.threeControls.enabled = !event.value;
+                });
+
+                // 🔄 SYNC GIZMO -> NODE WIDGETS
+                this.transformControl.addEventListener('change', () => {
+                    if (this.transformControl.object) {
+                        const wrapper = this.transformControl.object;
+                        const nodeId = wrapper.userData.sourceNodeId;
+                        if (nodeId) {
+                            const node = app.graph.getNodeById(nodeId);
+                            if (node) {
+                                const mode = this.transformControl.getMode();
+                                if (mode === 'translate') {
+                                    // 1cm Grid Snapping Logic handled by step in widget usually, 
+                                    const p = wrapper.position;
+                                    const setW = (n, name, v) => {
+                                        const w = n.widgets?.find(x => x.name?.toLowerCase() === name.toLowerCase());
+                                        if (w) { w.value = Math.round(v * 10) / 10; w.callback?.(w.value); }
+                                    };
+                                    setW(node, "pos_x", p.x);
+                                    setW(node, "pos_y", p.y);
+                                    setW(node, "pos_z", p.z);
+                                } else if (mode === 'rotate') {
+                                    const r = wrapper.rotation; // Euler XYZ because we forced it on wrapper
+                                    const setW = (n, name, v) => {
+                                        const w = n.widgets?.find(x => x.name?.toLowerCase() === name.toLowerCase());
+                                        if (w) { w.value = Math.round(v * 57.2958 * 10) / 10; w.callback?.(w.value); }
+                                    };
+                                    setW(node, "rot_x", r.x);
+                                    setW(node, "rot_y", r.y);
+                                    setW(node, "rot_z", r.z);
+                                } else if (mode === 'scale') {
+                                    const s = wrapper.scale.x; // Uniform scale assumption
+                                    const setW = (n, name, v) => {
+                                        const w = n.widgets?.find(x => x.name?.toLowerCase() === name.toLowerCase());
+                                        if (w) { w.value = Math.round(v * 100) / 100; w.callback?.(w.value); }
+                                    };
+                                    setW(node, "uniform_scale", s);
+                                }
+                            }
+                        }
+                    }
+                });
+
+                this.threeScene.add(this.transformControl);
+
+                // 🖱️ CLICK SELECTION RAYCASTER
+                const raycaster = new THREE.Raycaster();
+                const mouse = new THREE.Vector2();
+
+                // 🖱️ CLICK SELECTION LOGIC (Robust)
+                let dragStartPos = { x: 0, y: 0 };
+                this.viewer_element.addEventListener('pointerdown', (event) => {
+                    dragStartPos = { x: event.clientX, y: event.clientY };
+                });
+
+                this.viewer_element.addEventListener('pointerup', (event) => {
+                    const dx = Math.abs(event.clientX - dragStartPos.x);
+                    const dy = Math.abs(event.clientY - dragStartPos.y);
+
+                    // If moved more than 2 pixels, it's a drag/orbit, not a click. Ignore.
+                    if (dx > 2 || dy > 2) return;
+
+                    // Only select if not interacting with gizmo
+                    if (this.transformControl.dragging) return;
+
+                    const rect = this.viewer_element.getBoundingClientRect();
+                    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+                    raycaster.setFromCamera(mouse, this.threeCamera);
+
+                    // Actually we need to raycast against mesh children, then find their wrapper parent
+                    const meshes = [];
+                    this.threeScene.traverse(o => { if (o.isMesh) meshes.push(o); });
+
+                    const intersects = raycaster.intersectObjects(meshes, false);
+
+                    if (intersects.length > 0) {
+                        let target = intersects[0].object;
+                        // Walk up to find the wrapper
+                        while (target && !target.isWrapper && target.parent) target = target.parent;
+
+                        if (target && target.isWrapper) {
+                            // If re-clicking same object, don't detach
+                            if (this.transformControl.object !== target) {
+                                this.transformControl.attach(target);
+                            }
+                            this.setDirtyCanvas(true);
+                            return;
+                        }
+                    }
+
+                    // Deselect if clicked empty space
+                    this.transformControl.detach();
+                    this.setDirtyCanvas(true);
+                });
+
+                // ⌨️ KEYBOARD SHORTCUTS
+                this.viewer_element.addEventListener('keydown', (event) => {
+                    switch (event.key.toLowerCase()) {
+                        case 'w': this.transformControl.setMode('translate'); break;
+                        case 'e': this.transformControl.setMode('rotate'); break;
+                        case 'r': this.transformControl.setMode('scale'); break;
+                        case '+': this.transformControl.setSize(this.transformControl.size + 0.1); break;
+                        case '-': this.transformControl.setSize(Math.max(0.1, this.transformControl.size - 0.1)); break;
+                    }
+                });
+                // Ensure canvas can receive focus for keys
+                this.viewer_element.tabIndex = 0;
+                this.viewer_element.style.outline = "none";
 
                 // 💡 Advanced Lighting setup
                 const ambient = new THREE.AmbientLight(0xffffff, 0.5);
@@ -267,7 +387,8 @@ app.registerExtension({
                 if (!localUrl && node.mixo3d_last_url) localUrl = node.mixo3d_last_url;
 
                 if (localUrl) {
-                    results.push({ url: localUrl, matrix: new THREE.Matrix4(), materialState: null });
+                    const sid = (node && node.id) ? node.id : null;
+                    results.push({ url: localUrl, matrix: new THREE.Matrix4(), materialState: null, sourceNodeId: sid });
                 }
 
                 // 2. TRACE UPSTREAM (Only if it's not a terminal source or for combining)
@@ -435,6 +556,7 @@ app.registerExtension({
 
                             wrapper.__lastUrl = obj.url;
                             wrapper.isWrapper = true; // Flag for debugging
+                            if (obj.sourceNodeId) wrapper.userData.sourceNodeId = obj.sourceNodeId;
 
                             self.compositionModels[obj.id] = wrapper;
                             self.threeScene.add(wrapper);
@@ -452,9 +574,15 @@ app.registerExtension({
 
                     // ⚡ FORCE MATRIX SYNC ⚡
                     if (model && model.isObject3D) {
-                        model.matrixAutoUpdate = false;
-                        model.matrix.copy(obj.matrix);
-                        model.updateMatrixWorld(true);
+                        // If we are currently dragging OR selected with gizmo, don't force-reset it from the graph
+                        // This prevents fighting between Gizmo and Graph.
+                        const isSelected = (self.transformControl && self.transformControl.object === model);
+
+                        if (!isSelected) {
+                            model.matrixAutoUpdate = false;
+                            model.matrix.copy(obj.matrix);
+                            model.updateMatrixWorld(true);
+                        }
 
                         // Handle Material Injection
                         if (obj.materialState) {
