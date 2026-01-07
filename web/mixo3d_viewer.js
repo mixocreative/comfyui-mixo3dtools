@@ -309,14 +309,45 @@ app.registerExtension({
 
             this.updateGrid = function (sz) {
                 if (!this.threeScene) return;
+                // Ensure removal
+                const old = this.threeScene.getObjectByName("MixoGrid");
+                if (old) this.threeScene.remove(old);
+
                 if (this.currentGrid) this.threeScene.remove(this.currentGrid);
+
                 let size = 100.0, div = 10;
                 if (sz === "20cm") { size = 200.0; div = 20; }
                 else if (sz === "30cm") { size = 300.0; div = 30; }
+
                 this.currentGrid = new THREE.GridHelper(size, div, 0x888888, 0x333333);
+                this.currentGrid.name = "MixoGrid";
                 this.threeScene.add(this.currentGrid);
                 this.setDirtyCanvas(true);
             };
+
+            // Force Grid Check Logic
+            this.ensureGrid = function () {
+                if (!this.threeScene) return;
+                const g = this.threeScene.getObjectByName("MixoGrid");
+                if (!g) this.updateGrid(this.__lastGridSize || "10cm");
+            };
+
+            // Reset Camera Button
+            const resetBtn = document.createElement("button");
+            resetBtn.textContent = "⌖";
+            resetBtn.title = "Reset Camera";
+            Object.assign(resetBtn.style, {
+                position: "absolute", top: "10px", right: "10px", zIndex: 100,
+                background: "#444", color: "#fff", border: "1px solid #666",
+                width: "24px", height: "24px", cursor: "pointer", borderRadius: "4px"
+            });
+            resetBtn.onclick = () => {
+                if (!self.threeControls) return;
+                self.threeControls.target.set(0, 0, 0);
+                self.threeCamera.position.set(150, 150, 150);
+                self.threeControls.update();
+            }
+            container.appendChild(resetBtn);
 
             this.clearAllModels = function () {
                 if (!this.compositionModels) return;
@@ -438,6 +469,12 @@ app.registerExtension({
 
             // Monitor
             this.monitor = setInterval(() => {
+                // Spin Debug Cube from Monitor (Backup)
+                if (self.debugCube) {
+                    self.debugCube.rotation.x += 0.05;
+                    self.debugCube.rotation.y += 0.02;
+                }
+
                 const show = self.widgets?.find(x => x.name === "show_preview")?.value !== false;
                 if (!show) {
                     if (container.style.display !== "none") { container.style.display = "none"; self.clearAllModels(); }
@@ -446,6 +483,9 @@ app.registerExtension({
                 if (container.style.display === "none") { container.style.display = "flex"; self.setDirtyCanvas(true); }
 
                 if (!self.threeScene) { self.initEngine(); return; }
+
+                // Force Grid
+                if (self.ensureGrid) self.ensureGrid();
 
                 syncSize();
 
