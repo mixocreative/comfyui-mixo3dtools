@@ -157,7 +157,7 @@ app.registerExtension({
                     this.debugCube.position.set(0, 50, 0);
                     this.threeScene.add(this.debugCube);
 
-                    this.threeCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 50000);
+                    this.threeCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000000); // 2 Million Far Clip
                     this.threeCamera.position.set(150, 150, 150);
 
                     this.threeRenderer = new THREE.WebGLRenderer({
@@ -387,12 +387,14 @@ app.registerExtension({
 
                 const c = box.getCenter(new THREE.Vector3());
                 const s = box.getSize(new THREE.Vector3());
-                const d = Math.max(s.x, s.y, s.z) * 2.2;
+
+                // Smart Clamp
+                let d = Math.max(s.x, s.y, s.z) * 2.0;
+                d = Math.max(d, 50);   // Minimum distance
+                d = Math.min(d, 5000); // Maximum distance (Prevent flying to space)
 
                 // Safety check for NaN or Infinity
                 if (!isFinite(d) || !isFinite(c.x) || !isFinite(c.y) || !isFinite(c.z)) return;
-
-                if (d < 0.1) return; // Too small
 
                 this.threeControls.target.copy(c);
                 this.threeCamera.position.set(c.x + d, c.y + d, c.z + d);
