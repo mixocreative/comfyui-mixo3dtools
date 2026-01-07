@@ -411,7 +411,12 @@ app.registerExtension({
                             m.__lastUrl = obj.url;
                             self.compositionModels[obj.id] = m;
                             self.threeScene.add(m);
-                            self.fitCamera();
+
+                            // Only force camera fit if it's the very first load of the session
+                            if (!self.__hasFramedOnce) {
+                                self.fitCamera(true);
+                                self.__hasFramedOnce = true;
+                            }
                         }, undefined, (err) => {
                             console.error("[Mixo3D] Failed to load live model:", err);
                             self.compositionModels[obj.id] = null;

@@ -42,13 +42,14 @@ class GLBExporter:
         scene_rot = np.eye(4)
         if up_direction == "Z":
             from .transform_utils import create_trs_matrix
-            scene_rot = create_trs_matrix(rotation=(-90, 0, 0))
+            # Match Three.js inversion logic: -(-90) = 90
+            scene_rot = create_trs_matrix(rotation=(90, 0, 0))
         elif up_direction == "-Y":
             from .transform_utils import create_trs_matrix
-            scene_rot = create_trs_matrix(rotation=(180, 0, 0))
+            scene_rot = create_trs_matrix(rotation=(180, 0, 0)) # 180 is same
         elif up_direction == "-Z":
             from .transform_utils import create_trs_matrix
-            scene_rot = create_trs_matrix(rotation=(90, 0, 0))
+            scene_rot = create_trs_matrix(rotation=(-90, 0, 0))
 
         # ⚡ Gather all meshes from all branches (Supports deep chains)
         all_items = []

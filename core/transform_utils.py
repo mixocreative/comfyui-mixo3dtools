@@ -7,7 +7,8 @@ def create_trs_matrix(position=(0, 0, 0), rotation=(0, 0, 0), scale=(1, 1, 1)):
     rotation is in degrees.
     """
     px, py, pz = position
-    rx, ry, rz = np.radians(rotation)
+    # Invert rotation to match visual preview coordinate system
+    rx, ry, rz = np.radians([-r for r in rotation])
     sx, sy, sz = scale
 
     # Replicating Three.js makeRotationFromEuler 'XYZ'
