@@ -33,6 +33,9 @@ class MeshFromPath:
             scene_or_mesh = trimesh.load(final_path)
             
             if isinstance(scene_or_mesh, trimesh.Scene):
+                # Flatten hierarchy: Bake all scene node transforms into mesh vertices
+                meshes = scene_or_mesh.dump(concatenate=False)
+                
                 all_verts = []
                 all_faces = []
                 all_normals = []
@@ -43,14 +46,15 @@ class MeshFromPath:
                 v_offset = 0
                 mat_cache = {} 
 
-                for name, mesh in scene_or_mesh.geometry.items():
+                for mesh in meshes:
+                    if not isinstance(mesh, trimesh.Trimesh): continue
+                    
                     mat_obj = getattr(mesh.visual, 'material', None)
                     mat_key = str(id(mat_obj)) if mat_obj else "default"
                     
                     if mat_key not in mat_cache:
                         mat_idx = len(all_mats)
                         mat_cache[mat_key] = mat_idx
-                        # Extract material data with NAME
                         m_name = getattr(mat_obj, 'name', f"Material_{mat_idx}")
                         if not m_name: m_name = f"Material_{mat_idx}"
                         

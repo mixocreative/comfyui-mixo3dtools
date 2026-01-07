@@ -97,8 +97,20 @@ class MeshMaterialInspector:
         })
 
         # Register and export preview
-        new_id = f"{target_mesh_id}_mod_{uuid.uuid4().hex[:4]}"
-        registry.register_mesh(new_mesh_data, requested_id=new_id)
+        # Register and export preview
+        new_mesh_id = f"{target_mesh_id}_mod_{uuid.uuid4().hex[:4]}"
+        registry.register_mesh(new_mesh_data, requested_id=new_mesh_id)
+        
+        # Preserve transform if incoming was a node
+        final_id = new_mesh_id
+        if isinstance(item, SceneNodeData):
+            # Create a new node ID that inherits the transform but uses new mesh
+            node_data = SceneNodeData(
+                mesh_id=new_mesh_id,
+                transform=item.transform,
+                metadata=item.metadata.copy()
+            )
+            final_id = registry.register_node(node_data)
 
         out_dir = folder_paths.get_output_directory()
         subfolder = "mixo3d_cache"
@@ -107,7 +119,7 @@ class MeshMaterialInspector:
         
         preview_filename = f"preview_mat_{uuid.uuid4().hex[:8]}.glb"
         preview_path = os.path.join(full_out_dir, preview_filename)
-        GLBExporter.export([new_id], preview_path, add_preview_helpers=False)
+        GLBExporter.export([final_id], preview_path, add_preview_helpers=False)
 
         ui_data = {
             "glb_url": [os.path.join(subfolder, preview_filename)],
@@ -119,7 +131,7 @@ class MeshMaterialInspector:
             }
         }
         
-        return {"ui": ui_data, "result": (new_id, os.path.join(subfolder, preview_filename))}
+        return {"ui": ui_data, "result": (final_id, os.path.join(subfolder, preview_filename))}
 
 NODE_CLASS_MAPPINGS = {
     "MeshMaterialInspector": MeshMaterialInspector

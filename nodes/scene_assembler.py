@@ -86,7 +86,9 @@ class SceneAssembler:
             item = registry.get_any(mesh_id)
             if item:
                 cache_key.update(item.get_hash().encode())
+        cache_key.update(up_direction.encode())
         cache_key.update(optimize_mesh.encode())
+        if grid_size: cache_key.update(grid_size.encode())
         cache_hash = cache_key.hexdigest()[:8]
         
         # Create a persistent combined GLB file for the assembled scene
@@ -122,7 +124,7 @@ class SceneAssembler:
         
         if not use_existing:
             # Export the combined scene to a persistent GLB file
-            GLBExporter.export(id_list, combined_path, add_preview_helpers=False)
+            GLBExporter.export(id_list, combined_path, add_preview_helpers=False, up_direction=up_direction)
             
             # Apply mesh optimization if requested
             if optimize_mesh != "none":
@@ -266,19 +268,28 @@ class SceneAssembler:
                 stats = {"error": str(e)}
         
         # Handle optional user export
-        export_path = None
+        final_result_path = relative_combined_path
         if trigger_export == "true":
             # Determine export directory
             if export_directory and export_directory.strip():
                 export_dir = export_directory.strip()
                 os.makedirs(export_dir, exist_ok=True)
+                is_custom_path = True
             else:
                 export_dir = folder_paths.get_output_directory()
+                is_custom_path = False
             
             actual_export_filename = f"{export_filename}.{export_format}"
             export_file_path = os.path.join(export_dir, actual_export_filename)
-            GLBExporter.export(id_list, export_file_path, add_preview_helpers=False, file_type=export_format)
-            export_path = os.path.abspath(export_file_path)
+            
+            # ⚡ IMPORTANT: Pass up_direction to match preview
+            GLBExporter.export(id_list, export_file_path, add_preview_helpers=False, 
+                               file_type=export_format, up_direction=up_direction)
+            
+            if is_custom_path:
+                final_result_path = os.path.abspath(export_file_path)
+            else:
+                final_result_path = actual_export_filename
 
         ui_data = {
             "glb_url": [relative_combined_path],
@@ -296,11 +307,12 @@ class SceneAssembler:
             ui_data["stats"] = stats
         
         # Add export path to UI data if export was triggered
-        if export_path:
-            ui_data["export_path"] = export_path
+        if trigger_export == "true":
+            ui_data["export_successful"] = True
+            ui_data["export_path"] = os.path.abspath(export_file_path)
 
-        # Return the new scene_id and the persistent combined file path
-        return {"ui": ui_data, "result": (scene_id, relative_combined_path)}
+        # Return the new scene_id and the appropriate file path
+        return {"ui": ui_data, "result": (scene_id, final_result_path)}
 
 NODE_CLASS_MAPPINGS = {
     "SceneAssembler": SceneAssembler

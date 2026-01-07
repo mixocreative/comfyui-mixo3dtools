@@ -128,6 +128,10 @@ app.registerExtension({
 
                 this.threeControls = new THREE.OrbitControls(this.threeCamera, this.viewer_element);
                 this.threeControls.enableDamping = true;
+                this.threeControls.addEventListener("change", () => {
+                    if (this.__mouseIn) this.__cameraMoved = true;
+                    this.setDirtyCanvas(true);
+                });
 
                 // 💡 Advanced Lighting setup
                 const ambient = new THREE.AmbientLight(0xffffff, 0.5);
@@ -221,8 +225,8 @@ app.registerExtension({
                 self.setDirtyCanvas(true);
             };
 
-            this.fitCamera = () => {
-                if (!this.threeScene) return;
+            this.fitCamera = (force = false) => {
+                if (!this.threeScene || (this.__cameraMoved && !force)) return;
                 const box = new THREE.Box3(); let any = false;
                 this.threeScene.traverse(m => { if (m.isMesh && m.type !== "GridHelper") { box.expandByObject(m); any = true; } });
                 if (!any) return;
@@ -230,6 +234,8 @@ app.registerExtension({
                 const d = Math.max(s.x, s.y, s.z) * 2.2; if (d < 0.1) return;
                 this.threeControls.target.copy(c); this.threeCamera.position.set(c.x + d, c.y + d, c.z + d);
             }
+            container.addEventListener("mouseenter", () => { this.__mouseIn = true; });
+            container.addEventListener("mouseleave", () => { this.__mouseIn = false; });
 
             const traceScene = (node, depth = 0, visited = new Set()) => {
                 if (!node || depth > 20 || visited.has(node.id)) return [];
@@ -353,15 +359,22 @@ app.registerExtension({
 
                 // BUILD LIVE SCENE
                 if (currentType === "SceneAssembler") {
+                    const upDir = (self.widgets?.find(x => x.name === "up_direction")?.value) || "Y";
+                    const orientation = new THREE.Matrix4();
+                    if (upDir === "Z") orientation.makeRotationX(-Math.PI / 2);
+                    else if (upDir === "-Y") orientation.makeRotationX(Math.PI);
+                    else if (upDir === "-Z") orientation.makeRotationX(Math.PI / 2);
+
                     (self.inputs || []).forEach(inp => {
                         if (inp.name?.startsWith("mesh_id") && inp.link !== null) {
                             const link = app.graph.links[inp.link];
-                            if (link) {
+                            if (link && link.origin_id) {
                                 const upstream = app.graph.getNodeById(link.origin_id);
                                 if (upstream) {
                                     const objs = traceScene(upstream);
                                     objs.forEach((o, i) => {
                                         o.id = `asm_${inp.name}_${i}`;
+                                        o.matrix.premultiply(orientation);
                                         sceneObjects.push(o);
                                     });
                                 }
