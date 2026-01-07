@@ -96,6 +96,29 @@ app.registerExtension({
             });
             this.viewer_stats_badge = createBadge(s => { s.top = "10px"; s.right = "10px"; s.minWidth = "150px"; });
 
+            // Gizmo Toolbar
+            const toolbar = document.createElement("div");
+            Object.assign(toolbar.style, {
+                position: "absolute", bottom: "10px", left: "50%", transform: "translateX(-50%)",
+                display: "flex", gap: "5px", zIndex: 20, background: "rgba(0,0,0,0.6)", padding: "4px", borderRadius: "6px"
+            });
+            const mkBtn = (lbl, mode) => {
+                const b = document.createElement("button");
+                b.textContent = lbl;
+                Object.assign(b.style, {
+                    background: "#333", color: "#eee", border: "1px solid #555", cursor: "pointer",
+                    padding: "4px 8px", fontSize: "11px", borderRadius: "3px"
+                });
+                b.onclick = () => {
+                    if (self.transformControl) self.transformControl.setMode(mode);
+                };
+                toolbar.appendChild(b);
+            };
+            mkBtn("✢ Move", "translate");
+            mkBtn("↻ Rotate", "rotate");
+            mkBtn("□ Scale", "scale");
+            container.appendChild(toolbar);
+
             // Canvas
             const canvas = document.createElement("canvas");
             Object.assign(canvas.style, { width: "100%", height: "100%", display: "block" });
@@ -149,13 +172,6 @@ app.registerExtension({
 
                     this.threeScene = new THREE.Scene();
                     this.threeScene.background = new THREE.Color(0x222222);
-
-                    // DEBUG CUBE
-                    const geometry = new THREE.BoxGeometry(20, 20, 20);
-                    const material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
-                    this.debugCube = new THREE.Mesh(geometry, material);
-                    this.debugCube.position.set(0, 50, 0);
-                    this.threeScene.add(this.debugCube);
 
                     this.threeCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000000); // 2 Million Far Clip
                     this.threeCamera.position.set(150, 150, 150);
@@ -363,12 +379,10 @@ app.registerExtension({
 
             this.fitCamera = (force = false) => {
                 if (!this.threeScene || (this.__cameraMoved && !force)) return;
-
                 const box = new THREE.Box3();
                 let any = false;
 
                 this.threeScene.traverse(m => {
-                    // Ignore Grid, DebugCube, and Helpers
                     if (m.isMesh && m.type !== "GridHelper" && m !== this.debugCube && !m.isHelper) {
                         box.expandByObject(m);
                         any = true;
@@ -376,7 +390,6 @@ app.registerExtension({
                 });
 
                 if (!any) {
-                    // Reset to default if empty
                     if (force) {
                         this.threeControls.target.set(0, 0, 0);
                         this.threeCamera.position.set(150, 150, 150);
@@ -388,13 +401,15 @@ app.registerExtension({
                 const c = box.getCenter(new THREE.Vector3());
                 const s = box.getSize(new THREE.Vector3());
 
-                // Smart Clamp
-                let d = Math.max(s.x, s.y, s.z) * 2.0;
-                d = Math.max(d, 50);   // Minimum distance
-                d = Math.min(d, 5000); // Maximum distance (Prevent flying to space)
+                // Trig Fit (Show Everything)
+                // dist = radius / sin(fov/2)
+                const radius = Math.max(s.x, s.y, s.z) / 2.0;
+                const fov = this.threeCamera.fov * (Math.PI / 180);
+                let d = (radius / Math.sin(fov / 2)) * 1.5; // 1.5x margin
 
-                // Safety check for NaN or Infinity
-                if (!isFinite(d) || !isFinite(c.x) || !isFinite(c.y) || !isFinite(c.z)) return;
+                d = Math.max(d, 50); // Min dist
+
+                if (!isFinite(d) || !isFinite(c.x)) return;
 
                 this.threeControls.target.copy(c);
                 this.threeCamera.position.set(c.x + d, c.y + d, c.z + d);
@@ -471,11 +486,6 @@ app.registerExtension({
 
             // Monitor
             this.monitor = setInterval(() => {
-                // Spin Debug Cube from Monitor (Backup)
-                if (self.debugCube) {
-                    self.debugCube.rotation.x += 0.05;
-                    self.debugCube.rotation.y += 0.02;
-                }
 
                 const show = self.widgets?.find(x => x.name === "show_preview")?.value !== false;
                 if (!show) {
