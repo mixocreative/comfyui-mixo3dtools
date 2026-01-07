@@ -245,7 +245,7 @@ app.registerExtension({
                 const type = (node.type || node.comfyClass || "").toLowerCase();
                 const getWVal = (n, name) => {
                     if (!n?.widgets) return undefined;
-                    const w = n.widgets.find(x => x.name === name || (x.name?.toLowerCase() === name.toLowerCase()) || x.label === name);
+                    const w = n.widgets.find(x => x.name?.toLowerCase() === name.toLowerCase() || x.label?.toLowerCase() === name.toLowerCase());
                     return w ? w.value : undefined;
                 };
 
