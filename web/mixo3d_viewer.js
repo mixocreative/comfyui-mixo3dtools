@@ -135,7 +135,11 @@ app.registerExtension({
                     this.threeCamera.position.set(150, 150, 150);
 
                     this.threeRenderer = new THREE.WebGLRenderer({
-                        canvas: this.viewer_element, antialias: true, alpha: true, logarithmicDepthBuffer: true
+                        canvas: this.viewer_element,
+                        antialias: true,
+                        alpha: true,
+                        logarithmicDepthBuffer: true,
+                        preserveDrawingBuffer: true
                     });
                     this.threeRenderer.setPixelRatio(window.devicePixelRatio);
                     this.threeRenderer.physicallyCorrectLights = true;
