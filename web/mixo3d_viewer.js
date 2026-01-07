@@ -13,12 +13,11 @@ const loadLib = (url) => new Promise(resolve => {
     await loadLib("https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js");
     await loadLib("https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js");
     await loadLib("https://unpkg.com/three@0.128.0/examples/js/controls/TransformControls.js");
-    await loadLib("https://unpkg.com/three@0.128.0/examples/js/controls/TransformControls.js");
-    // Wait a tiny bit for scripts to parse
+    // Wait a bit for scripts to parse
     setTimeout(() => {
         window.mixo3d_libs_loaded = (typeof THREE !== "undefined" && THREE.GLTFLoader);
         console.log("[Mixo3D] Libs loaded check:", window.mixo3d_libs_loaded);
-    }, 100);
+    }, 500);
 })();
 
 app.registerExtension({
@@ -41,6 +40,23 @@ app.registerExtension({
                 border: "2px solid #333", position: "relative", overflow: "hidden", display: "flex",
                 flexDirection: "column", alignItems: "stretch", marginTop: "10px"
             });
+
+            // 🔄 MANUAL REFRESH BUTTON (Fallback)
+            const refreshBtn = document.createElement("button");
+            refreshBtn.textContent = "🔄 LOAD 3D VIEWER";
+            Object.assign(refreshBtn.style, {
+                position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                zIndex: 100, padding: '10px 20px', background: '#333', color: '#fff', border: '1px solid #555', cursor: 'pointer'
+            });
+            refreshBtn.onclick = () => {
+                // Force retry libs check
+                window.mixo3d_libs_loaded = (typeof THREE !== "undefined" && THREE.GLTFLoader);
+                if (self.initEngine) self.initEngine();
+                refreshBtn.style.display = 'none';
+            };
+            container.appendChild(refreshBtn);
+            // Hide it if we succeed later
+            this.viewer_refresh_btn = refreshBtn;
 
             const infoBadge = document.createElement("div");
             Object.assign(infoBadge.style, {
@@ -173,6 +189,8 @@ try {
 this.updateGrid("10cm");
 this.compositionModels = {};
 this.gltfLoader = new THREE.GLTFLoader();
+
+if (this.viewer_refresh_btn) this.viewer_refresh_btn.style.display = 'none';
 
 const animate = () => {
     if (!this.threeRenderer) return;
