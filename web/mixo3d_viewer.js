@@ -148,7 +148,14 @@ app.registerExtension({
                     }
 
                     this.threeScene = new THREE.Scene();
-                    this.threeScene.background = new THREE.Color(0x0b0b0c);
+                    this.threeScene.background = new THREE.Color(0x222222);
+
+                    // DEBUG CUBE
+                    const geometry = new THREE.BoxGeometry(20, 20, 20);
+                    const material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+                    this.debugCube = new THREE.Mesh(geometry, material);
+                    this.debugCube.position.set(0, 50, 0);
+                    this.threeScene.add(this.debugCube);
 
                     this.threeCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 50000);
                     this.threeCamera.position.set(150, 150, 150);
@@ -156,7 +163,7 @@ app.registerExtension({
                     this.threeRenderer = new THREE.WebGLRenderer({
                         canvas: this.viewer_element,
                         antialias: true,
-                        alpha: true,
+                        alpha: false,
                         logarithmicDepthBuffer: true,
                         preserveDrawingBuffer: true
                     });
