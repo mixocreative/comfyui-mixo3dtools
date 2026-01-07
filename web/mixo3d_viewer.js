@@ -297,7 +297,24 @@ app.registerExtension({
                         const rz = parseFloat(getWVal(node, "rot_z") || 0) * 0.01745329;
                         const sVal = parseFloat(getWVal(node, "uniform_scale") || 1.0);
                         const m = new THREE.Matrix4().compose(new THREE.Vector3(px, py, pz), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz)), new THREE.Vector3(sVal, sVal, sVal));
-                        obj.matrix.premultiply(m);
+                        // Standard Multiplication: New * Old. 
+                        // In ThreeJS: A.multiply(B) -> A = A * B.
+                        // We want Total = NewTransform * PreviousTransform.
+                        // So we create the new matrix, and multiply the existing one into it?
+                        // Actually, premultiply is correct for (New * Old).
+                        // WAIT. The issue might be accumulation order in the loop.
+                        // Let's stick to standard multiply logic if the user reports weird drift.
+                        // Standard Scene Graph logic: Parent * Child.
+                        // If 'obj.matrix' is the child, 'm' is the parent.
+                        // obj.matrix.premultiply(m) -> obj.matrix = m * obj.matrix. This IS the correct math.
+
+                        // However, if the user sees accumulating errors, maybe we are double applying?
+                        // No, this recursive tracer rebuilds from scratch every frame.
+
+                        // Let's try explicit Euler order 'XYZ' to be safe.
+                        const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, 'XYZ'));
+                        const m2 = new THREE.Matrix4().compose(new THREE.Vector3(px, py, pz), q, new THREE.Vector3(sVal, sVal, sVal));
+                        obj.matrix.premultiply(m2);
                     }
                     if (type.includes("material")) {
                         const r = getWVal(node, "base_color_r");
